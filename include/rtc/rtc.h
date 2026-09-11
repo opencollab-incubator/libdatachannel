@@ -320,6 +320,9 @@ RTC_C_EXPORT bool rtcIsNegotiationNeeded(int pc);
 RTC_C_EXPORT int rtcGetMaxDataChannelStream(int pc);
 RTC_C_EXPORT int rtcGetRemoteMaxMessageSize(int pc);
 
+// Round trip time of the SCTP association in milliseconds, RTC_ERR_NOT_AVAIL until it reports one
+RTC_C_EXPORT int rtcGetRtt(int pc);
+
 // DataChannel, Track, and WebSocket common API
 
 RTC_C_EXPORT int rtcSetOpenCallback(int id, rtcOpenCallbackFunc cb);

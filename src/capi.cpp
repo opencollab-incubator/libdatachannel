@@ -892,6 +892,17 @@ bool rtcIsNegotiationNeeded(int pc) {
 	                                                                                     : false;
 }
 
+int rtcGetRtt(int pc) {
+	return wrap([&] {
+		auto peerConnection = getPeerConnection(pc);
+
+		if (auto rtt = peerConnection->rtt())
+			return int(rtt->count());
+		else
+			return RTC_ERR_NOT_AVAIL;
+	});
+}
+
 int rtcGetMaxDataChannelStream(int pc) {
 	return wrap([&] {
 		auto peerConnection = getPeerConnection(pc);
