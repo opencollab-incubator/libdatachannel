@@ -207,8 +207,8 @@ typedef struct {
 	bool enableIceUdpMux; // libjuice only
 	bool disableAutoNegotiation;
 	bool forceMediaTransport;
-	uint16_t portRangeBegin; // 0 means automatic
-	uint16_t portRangeEnd;   // 0 means automatic
+	int portRangeBegin;      // 0 means automatic, otherwise 1-65535
+	int portRangeEnd;        // 0 means automatic, otherwise 1-65535
 	int mtu;                 // <= 0 means automatic
 	int maxMessageSize;      // <= 0 means default
 	bool disableFingerprintVerification;

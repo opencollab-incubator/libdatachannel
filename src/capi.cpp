@@ -58,9 +58,13 @@ Configuration convertConfiguration(const rtcConfiguration *config) {
 	if (config->bindAddress)
 		c.bindAddress = string(config->bindAddress);
 
+	if (config->portRangeBegin < 0 || config->portRangeBegin > 65535 ||
+	    config->portRangeEnd < 0 || config->portRangeEnd > 65535)
+		throw std::invalid_argument("Port range bounds must be between 0 and 65535");
+
 	if (config->portRangeBegin > 0 || config->portRangeEnd > 0) {
-		c.portRangeBegin = config->portRangeBegin;
-		c.portRangeEnd = config->portRangeEnd;
+		c.portRangeBegin = static_cast<uint16_t>(config->portRangeBegin);
+		c.portRangeEnd = static_cast<uint16_t>(config->portRangeEnd);
 	}
 
 	c.certificateType = static_cast<CertificateType>(config->certificateType);
