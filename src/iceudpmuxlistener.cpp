@@ -94,4 +94,8 @@ void IceUdpMuxListener::attach(uint64_t requestId, shared_ptr<PeerConnection> pe
 
 IceUdpMuxListenerStats IceUdpMuxListener::stats() const { return impl()->stats(); }
 
+shared_ptr<StunUdpMuxMonitor> IceUdpMuxListener::monitorStun(string serverHost, uint16_t serverPort) {
+	return impl()->monitorStun(std::move(serverHost), serverPort);
+}
+
 } // namespace rtc
