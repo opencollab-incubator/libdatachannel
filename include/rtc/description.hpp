@@ -374,6 +374,7 @@ public:
 
 private:
 	optional<Candidate> defaultCandidate() const;
+	std::vector<string> announcedIceOptions() const;
 	shared_ptr<Entry> createEntry(string mline, string mid, Direction dir);
 	void removeApplication();
 

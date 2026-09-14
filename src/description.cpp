@@ -315,6 +315,21 @@ void Description::endCandidates() { mEnded = true; }
 
 Description::operator string() const { return generateSdp("\r\n"); }
 
+std::vector<string> Description::announcedIceOptions() const {
+	if (!mEnded)
+		return mIceOptions;
+
+	// RFC 8838: trickle tells the peer that more candidates may follow, which is not true of a
+	// description whose candidates have ended
+	std::vector<string> options;
+	options.reserve(mIceOptions.size());
+	for (const auto &option : mIceOptions)
+		if (option != "trickle")
+			options.push_back(option);
+
+	return options;
+}
+
 string Description::generateSdp(string_view eol) const {
 	std::ostringstream sdp;
 
@@ -345,8 +360,9 @@ string Description::generateSdp(string_view eol) const {
 
 	// Session-level attributes
 	sdp << "a=msid-semantic:WMS *" << eol;
-	if (!mIceOptions.empty())
-		sdp << "a=ice-options:" << utils::implode(mIceOptions, ' ') << eol;
+	auto iceOptions = announcedIceOptions();
+	if (!iceOptions.empty())
+		sdp << "a=ice-options:" << utils::implode(iceOptions, ' ') << eol;
 	if (mFingerprint)
 		sdp << "a=fingerprint:"
 		    << CertificateFingerprint::AlgorithmIdentifier(mFingerprint->algorithm) << " "
@@ -408,8 +424,9 @@ string Description::generateApplicationSdp(string_view eol) const {
 
 	// Session-level attributes
 	sdp << "a=msid-semantic:WMS *" << eol;
-	if (!mIceOptions.empty())
-		sdp << "a=ice-options:" << utils::implode(mIceOptions, ' ') << eol;
+	auto iceOptions = announcedIceOptions();
+	if (!iceOptions.empty())
+		sdp << "a=ice-options:" << utils::implode(iceOptions, ' ') << eol;
 
 	for (const auto &attr : mAttributes)
 		sdp << "a=" << attr << eol;
