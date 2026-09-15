@@ -33,6 +33,8 @@ class IceTransport : public Transport {
 public:
 	static void Init();
 	static void Cleanup();
+	static uint64_t UdpMonotonicTimeMs();
+	optional<UdpSendStats> udpSendStats() const;
 
 	enum class GatheringState { New = 0, InProgress = 1, Complete = 2 };
 

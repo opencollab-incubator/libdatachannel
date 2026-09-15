@@ -92,6 +92,13 @@ Configuration convertConfiguration(const rtcConfiguration *config) {
 	return c;
 }
 
+UdpSendLimits convertUdpSendLimits(const rtcUdpSendLimits *limits) {
+	if (!limits) throw std::invalid_argument("UDP send limits are required");
+	return {limits->maxDatagrams, limits->maxPayloadBytes, limits->deadlineMonotonicMs,
+	        limits->destinationAddress ? optional<string>(limits->destinationAddress) : nullopt,
+	        limits->destinationPort};
+}
+
 shared_ptr<IceUdpMuxListener> getIceUdpMuxListener(int id) {
 	std::lock_guard lock(mutex);
 	if (auto it = iceUdpMuxListenerMap.find(id); it != iceUdpMuxListenerMap.end())
@@ -596,8 +603,9 @@ int rtcGetStunUdpMuxBinding(int monitor, unsigned int index, rtcStunBinding *bin
 	});
 }
 
-int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
-                           const char *remoteSdp, const rtcLocalDescriptionInit *localInit, int *pc) {
+static int prepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
+                               const rtcUdpSendLimits *limits, const char *remoteSdp,
+                               const rtcLocalDescriptionInit *localInit, int *pc) {
 	if (pc)
 		*pc = -1;
 	return wrap([&] {
@@ -607,7 +615,9 @@ int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfigura
 		shared_ptr<PeerConnection> peer;
 		std::exception_ptr error;
 		try {
-			owned->prepare(requestId, convertConfiguration(config), Description(remoteSdp, "offer"),
+			auto configuration = convertConfiguration(config);
+			if (limits) configuration.udpSendLimits = convertUdpSendLimits(limits);
+			owned->prepare(requestId, std::move(configuration), Description(remoteSdp, "offer"),
 			               {string(localInit->iceUfrag), string(localInit->icePwd)}, peer);
 		} catch (...) {
 			error = std::current_exception();
@@ -620,6 +630,18 @@ int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfigura
 			std::rethrow_exception(error);
 		return RTC_ERR_SUCCESS;
 	});
+}
+
+int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
+                           const char *remoteSdp, const rtcLocalDescriptionInit *localInit, int *pc) {
+	return prepareIceUdpMuxPeer(listener, requestId, config, nullptr, remoteSdp, localInit, pc);
+}
+
+int rtcPrepareIceUdpMuxPeerWithUdpLimits(int listener, uint64_t requestId, const rtcConfiguration *config,
+                                       const rtcUdpSendLimits *limits, const char *remoteSdp,
+                                       const rtcLocalDescriptionInit *localInit, int *pc) {
+	if (!limits) { if (pc) *pc = -1; return RTC_ERR_INVALID; }
+	return prepareIceUdpMuxPeer(listener, requestId, config, limits, remoteSdp, localInit, pc);
 }
 
 int rtcAcceptIceUdpMuxPeer(int listener, uint64_t requestId, int pc) {
@@ -658,6 +680,33 @@ int rtcCreatePeerConnection(const rtcConfiguration *config) {
 	return wrap([config] {
 		Configuration c = convertConfiguration(config);
 		return emplacePeerConnection(std::make_shared<PeerConnection>(std::move(c)));
+	});
+}
+
+int rtcCreatePeerConnectionWithUdpLimits(const rtcConfiguration *config, const rtcUdpSendLimits *limits) {
+	return wrap([&] {
+		auto configuration = convertConfiguration(config);
+		configuration.udpSendLimits = convertUdpSendLimits(limits);
+		return emplacePeerConnection(std::make_shared<PeerConnection>(std::move(configuration)));
+	});
+}
+
+int rtcGetUdpMonotonicTimeMs(uint64_t *time) {
+	return wrap([&] {
+		if (!time) throw std::invalid_argument("Clock output is required");
+		*time = PeerConnection::udpMonotonicTimeMs();
+		return RTC_ERR_SUCCESS;
+	});
+}
+
+int rtcGetUdpSendStats(int pc, rtcUdpSendStats *stats) {
+	return wrap([&] {
+		if (!stats) throw std::invalid_argument("Statistics output is required");
+		auto value = getPeerConnection(pc)->udpSendStats();
+		if (!value) return RTC_ERR_NOT_AVAIL;
+		*stats = {value->reservedDatagrams, value->sentDatagrams, value->sentBytes,
+		          value->rejectedDatagrams, static_cast<rtcUdpSendRejection>(value->lastRejection)};
+		return RTC_ERR_SUCCESS;
 	});
 }
 

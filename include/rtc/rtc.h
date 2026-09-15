@@ -215,6 +215,28 @@ typedef struct {
 } rtcConfiguration;
 
 typedef struct {
+	uint32_t maxDatagrams;
+	uint32_t maxPayloadBytes;
+	uint64_t deadlineMonotonicMs;
+	const char *destinationAddress; // Optional numeric address; paired with nonzero port
+	uint16_t destinationPort;
+} rtcUdpSendLimits;
+
+typedef enum {
+	RTC_UDP_SEND_NOT_REJECTED = 0, RTC_UDP_SEND_EXPIRED = 1, RTC_UDP_SEND_COUNT = 2,
+	RTC_UDP_SEND_SIZE = 3, RTC_UDP_SEND_DESTINATION = 4, RTC_UDP_SEND_UNSUPPORTED = 5
+} rtcUdpSendRejection;
+typedef struct {
+	uint64_t reservedDatagrams, sentDatagrams, sentBytes, rejectedDatagrams;
+	rtcUdpSendRejection lastRejection;
+} rtcUdpSendStats;
+
+RTC_C_EXPORT int rtcGetUdpMonotonicTimeMs(uint64_t *time);
+RTC_C_EXPORT int rtcGetUdpSendStats(int pc, rtcUdpSendStats *stats);
+// New functions leave rtcConfiguration and existing unlimited entry points unchanged.
+RTC_C_EXPORT int rtcCreatePeerConnectionWithUdpLimits(const rtcConfiguration *config, const rtcUdpSendLimits *limits);
+
+typedef struct {
 	const char *iceUfrag;
 	const char *icePwd;
 } rtcLocalDescriptionInit;
@@ -260,6 +282,9 @@ RTC_C_EXPORT int rtcDeleteIceUdpMuxListener(int listener);
 // delete it normally. *pc is -1 when no peer was created.
 RTC_C_EXPORT int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId,
 	const rtcConfiguration *config, const char *remoteSdp,
+	const rtcLocalDescriptionInit *localInit, int *pc);
+RTC_C_EXPORT int rtcPrepareIceUdpMuxPeerWithUdpLimits(int listener, uint64_t requestId,
+	const rtcConfiguration *config, const rtcUdpSendLimits *limits, const char *remoteSdp,
 	const rtcLocalDescriptionInit *localInit, int *pc);
 RTC_C_EXPORT int rtcAcceptIceUdpMuxPeer(int listener, uint64_t requestId, int pc);
 // Authenticate and attach another source tuple to an existing peer. Its local
