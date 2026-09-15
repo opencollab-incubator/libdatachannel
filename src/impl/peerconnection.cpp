@@ -55,6 +55,20 @@ PeerConnection::PeerConnection(Configuration config_) : config(std::move(config_
 	++creationAttempts;
 #endif
 	PLOG_VERBOSE << "Creating PeerConnection";
+	if (config.udpSendLimits) {
+#if USE_NICE
+		throw std::invalid_argument("UDP send limits require libjuice");
+#else
+		const auto &limits = *config.udpSendLimits;
+		if (!config.enableIceUdpMux || config.enableIceTcp || config.proxyServer ||
+		    config.iceTransportPolicy != TransportPolicy::All ||
+		    std::any_of(config.iceServers.begin(), config.iceServers.end(), [](const auto &s) { return s.type != IceServer::Type::Stun; }) ||
+		    !limits.maxDatagrams || !limits.maxPayloadBytes || limits.maxPayloadBytes > 65507 ||
+		    limits.deadlineMonotonicMs > INT64_MAX || limits.deadlineMonotonicMs <= IceTransport::UdpMonotonicTimeMs() ||
+		    bool(limits.destinationAddress) != bool(limits.destinationPort))
+			throw std::invalid_argument("Invalid or unsupported UDP send limits");
+#endif
+	}
 
 	if (config.certificatePemFile && config.keyPemFile) {
 		std::promise<certificate_ptr> cert;

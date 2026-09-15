@@ -215,6 +215,28 @@ typedef struct {
 } rtcConfiguration;
 
 typedef struct {
+	uint32_t maxDatagrams;
+	uint32_t maxPayloadBytes;
+	uint64_t deadlineMonotonicMs;
+	const char *destinationAddress; // Optional numeric address; paired with nonzero port
+	uint16_t destinationPort;
+} rtcUdpSendLimits;
+
+typedef enum {
+	RTC_UDP_SEND_NOT_REJECTED = 0, RTC_UDP_SEND_EXPIRED = 1, RTC_UDP_SEND_COUNT = 2,
+	RTC_UDP_SEND_SIZE = 3, RTC_UDP_SEND_DESTINATION = 4, RTC_UDP_SEND_UNSUPPORTED = 5
+} rtcUdpSendRejection;
+typedef struct {
+	uint64_t reservedDatagrams, sentDatagrams, sentBytes, rejectedDatagrams;
+	rtcUdpSendRejection lastRejection;
+} rtcUdpSendStats;
+
+RTC_C_EXPORT int rtcGetUdpMonotonicTimeMs(uint64_t *time);
+RTC_C_EXPORT int rtcGetUdpSendStats(int pc, rtcUdpSendStats *stats);
+// New functions leave rtcConfiguration and existing unlimited entry points unchanged.
+RTC_C_EXPORT int rtcCreatePeerConnectionWithUdpLimits(const rtcConfiguration *config, const rtcUdpSendLimits *limits);
+
+typedef struct {
 	const char *iceUfrag;
 	const char *icePwd;
 } rtcLocalDescriptionInit;
@@ -261,12 +283,50 @@ RTC_C_EXPORT int rtcDeleteIceUdpMuxListener(int listener);
 RTC_C_EXPORT int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId,
 	const rtcConfiguration *config, const char *remoteSdp,
 	const rtcLocalDescriptionInit *localInit, int *pc);
+RTC_C_EXPORT int rtcPrepareIceUdpMuxPeerWithUdpLimits(int listener, uint64_t requestId,
+	const rtcConfiguration *config, const rtcUdpSendLimits *limits, const char *remoteSdp,
+	const rtcLocalDescriptionInit *localInit, int *pc);
 RTC_C_EXPORT int rtcAcceptIceUdpMuxPeer(int listener, uint64_t requestId, int pc);
 // Authenticate and attach another source tuple to an existing peer. Its local
 // credentials and remote identity are retained; failure never closes the peer.
 RTC_C_EXPORT int rtcAttachIceUdpMuxPeer(int listener, uint64_t requestId, int pc);
 RTC_C_EXPORT int rtcRejectIceUdpMuxRequest(int listener, uint64_t requestId);
 RTC_C_EXPORT int rtcGetIceUdpMuxListenerStats(int listener, rtcIceUdpMuxListenerStats *stats);
+
+// Persistent STUN monitoring on a shared UDP socket, with no ICE peer (libjuice only).
+typedef struct {
+	const char *bindAddress; // Must exactly match the listener/peer's configured bind address
+	uint16_t localPort;     // Explicit shared port required
+	const char *serverHost;
+	uint16_t serverPort;
+} rtcStunUdpMuxMonitorConfiguration;
+
+typedef enum {
+	RTC_STUN_BINDING_PENDING = 0,
+	RTC_STUN_BINDING_SUCCEEDED = 1,
+	RTC_STUN_BINDING_FAILED = 2
+} rtcStunBindingState;
+
+#define RTC_STUN_ADDRESS_MAX_LENGTH 64
+typedef struct {
+	char serverAddress[RTC_STUN_ADDRESS_MAX_LENGTH];
+	uint16_t serverPort;
+	char mappedAddress[RTC_STUN_ADDRESS_MAX_LENGTH];
+	uint16_t mappedPort;
+	rtcStunBindingState state;
+	uint64_t successfulResponses;
+	uint64_t failedTransactions;
+	uint64_t mappingRevision;
+	uint64_t lastSuccessAgeMs; // UINT64_MAX before any successful observation
+} rtcStunBinding;
+
+RTC_C_EXPORT int rtcCreateStunUdpMuxMonitor(const rtcStunUdpMuxMonitorConfiguration *config);
+// Prefer this factory when an admission listener already owns the gameplay socket.
+RTC_C_EXPORT int rtcCreateIceUdpMuxStunMonitor(int listener, const char *serverHost, uint16_t serverPort);
+RTC_C_EXPORT int rtcDeleteStunUdpMuxMonitor(int monitor);
+// Copies owned strings/counters/age atomically per resolved server. Reading sends
+// no packets. Returns RTC_ERR_NOT_AVAIL for an unresolved/nonexistent server index.
+RTC_C_EXPORT int rtcGetStunUdpMuxBinding(int monitor, unsigned int index, rtcStunBinding *binding);
 
 RTC_C_EXPORT int rtcCreatePeerConnection(const rtcConfiguration *config); // returns pc id
 #ifdef RTC_ENABLE_TEST_DIAGNOSTICS

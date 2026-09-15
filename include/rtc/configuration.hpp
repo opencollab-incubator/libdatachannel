@@ -63,6 +63,19 @@ enum class CertificateType {
 
 enum class TransportPolicy { All = RTC_TRANSPORT_POLICY_ALL, Relay = RTC_TRANSPORT_POLICY_RELAY };
 
+struct RTC_CPP_EXPORT UdpSendLimits {
+	uint32_t maxDatagrams;
+	uint32_t maxPayloadBytes;
+	uint64_t deadlineMonotonicMs; // PeerConnection::udpMonotonicTimeMs(), never relative to gathering
+	optional<string> destinationAddress;
+	uint16_t destinationPort = 0;
+};
+
+struct RTC_CPP_EXPORT UdpSendStats {
+	uint64_t reservedDatagrams, sentDatagrams, sentBytes, rejectedDatagrams;
+	int lastRejection; // rtcUdpSendRejection
+};
+
 struct RTC_CPP_EXPORT Configuration {
 	// ICE settings
 	std::vector<IceServer> iceServers;
@@ -78,6 +91,7 @@ struct RTC_CPP_EXPORT Configuration {
 	bool disableAutoGathering = false;
 	bool forceMediaTransport = false;
 	bool disableFingerprintVerification = false;
+	optional<UdpSendLimits> udpSendLimits; // Immutable; libjuice mux UDP only
 
 	// Port range
 	uint16_t portRangeBegin = 1024;

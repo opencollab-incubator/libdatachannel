@@ -144,6 +144,14 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
 	mAgent = decltype(mAgent)(juice_create(&jconfig), juice_destroy);
 	if (!mAgent)
 		throw std::runtime_error("Failed to create the ICE agent");
+	if (config.udpSendLimits) {
+		const auto &limits = *config.udpSendLimits;
+		juice_udp_send_limits_t native{limits.maxDatagrams, limits.maxPayloadBytes,
+		    limits.deadlineMonotonicMs, limits.destinationAddress ? limits.destinationAddress->c_str() : nullptr,
+		    limits.destinationPort};
+		if (juice_set_udp_send_limits(mAgent.get(), &native) != JUICE_ERR_SUCCESS)
+			throw std::invalid_argument("Invalid or expired UDP send limits");
+	}
 
 	// ICE-TCP
 	juice_set_ice_tcp_mode(mAgent.get(), config.enableIceTcp ? JUICE_ICE_TCP_MODE_ACTIVE
@@ -319,6 +327,17 @@ void IceTransport::changeGatheringState(GatheringState state) {
 		mGatheringStateChangeCallback(mGatheringState);
 }
 
+uint64_t IceTransport::UdpMonotonicTimeMs() { return juice_monotonic_time_ms(); }
+
+optional<UdpSendStats> IceTransport::udpSendStats() const {
+	juice_udp_send_stats_t stats{};
+	int result = juice_get_udp_send_stats(mAgent.get(), &stats);
+	if (result == JUICE_ERR_NOT_AVAIL) return nullopt;
+	if (result != JUICE_ERR_SUCCESS) throw std::runtime_error("UDP send statistics unavailable");
+	return UdpSendStats{stats.reserved_datagrams, stats.sent_datagrams, stats.sent_bytes,
+	                   stats.rejected_datagrams, static_cast<int>(stats.last_rejection)};
+}
+
 void IceTransport::processStateChange(unsigned int state) {
 	switch (state) {
 	case JUICE_STATE_DISCONNECTED:
@@ -406,6 +425,9 @@ void IceTransport::LogCallback(juice_log_level_t level, const char *message) {
 }
 
 #else // USE_NICE == 1
+
+uint64_t IceTransport::UdpMonotonicTimeMs() { throw std::runtime_error("UDP limits require libjuice"); }
+optional<UdpSendStats> IceTransport::udpSendStats() const { return nullopt; }
 
 IceTransport::MainLoopWrapper *IceTransport::MainLoop = nullptr;
 

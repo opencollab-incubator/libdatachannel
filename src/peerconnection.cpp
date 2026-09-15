@@ -393,6 +393,13 @@ bool PeerConnection::getSelectedCandidatePair(Candidate *local, Candidate *remot
 	return iceTransport ? iceTransport->getSelectedCandidatePair(local, remote) : false;
 }
 
+uint64_t PeerConnection::udpMonotonicTimeMs() { return impl::IceTransport::UdpMonotonicTimeMs(); }
+
+optional<UdpSendStats> PeerConnection::udpSendStats() const {
+	auto transport = impl()->getIceTransport();
+	return transport ? transport->udpSendStats() : nullopt;
+}
+
 void PeerConnection::clearStats() {
 	if (auto sctpTransport = impl()->getSctpTransport())
 		return sctpTransport->clearStats();

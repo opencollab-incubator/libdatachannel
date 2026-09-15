@@ -17,6 +17,7 @@
 #include <chrono>
 #include <exception>
 #include <future>
+#include <limits>
 #include <mutex>
 #include <type_traits>
 #include <unordered_map>
@@ -30,6 +31,7 @@ namespace {
 
 std::unordered_map<int, shared_ptr<PeerConnection>> peerConnectionMap;
 std::unordered_map<int, shared_ptr<IceUdpMuxListener>> iceUdpMuxListenerMap;
+std::unordered_map<int, shared_ptr<StunUdpMuxMonitor>> stunUdpMuxMonitorMap;
 std::unordered_map<int, shared_ptr<DataChannel>> dataChannelMap;
 std::unordered_map<int, shared_ptr<Track>> trackMap;
 #if RTC_ENABLE_MEDIA
@@ -90,11 +92,32 @@ Configuration convertConfiguration(const rtcConfiguration *config) {
 	return c;
 }
 
+UdpSendLimits convertUdpSendLimits(const rtcUdpSendLimits *limits) {
+	if (!limits) throw std::invalid_argument("UDP send limits are required");
+	return {limits->maxDatagrams, limits->maxPayloadBytes, limits->deadlineMonotonicMs,
+	        limits->destinationAddress ? optional<string>(limits->destinationAddress) : nullopt,
+	        limits->destinationPort};
+}
+
 shared_ptr<IceUdpMuxListener> getIceUdpMuxListener(int id) {
 	std::lock_guard lock(mutex);
 	if (auto it = iceUdpMuxListenerMap.find(id); it != iceUdpMuxListenerMap.end())
 		return it->second;
 	throw std::invalid_argument("ICE UDP mux listener ID does not exist");
+}
+
+shared_ptr<StunUdpMuxMonitor> getStunUdpMuxMonitor(int id) {
+	std::lock_guard lock(mutex);
+	if (auto it = stunUdpMuxMonitorMap.find(id); it != stunUdpMuxMonitorMap.end())
+		return it->second;
+	throw std::invalid_argument("STUN UDP mux monitor ID does not exist");
+}
+
+int registerStunUdpMuxMonitor(shared_ptr<StunUdpMuxMonitor> monitor) {
+	std::lock_guard lock(mutex);
+	int id = ++lastId;
+	stunUdpMuxMonitorMap.emplace(id, std::move(monitor));
+	return id;
 }
 
 optional<void *> getUserPointer(int id) {
@@ -184,15 +207,20 @@ void eraseTrack(int tr) {
 
 size_t eraseAll() {
 	std::unordered_map<int, shared_ptr<IceUdpMuxListener>> listeners;
+	std::unordered_map<int, shared_ptr<StunUdpMuxMonitor>> monitors;
 	{
 		std::lock_guard lock(mutex);
 		listeners.swap(iceUdpMuxListenerMap);
+		monitors.swap(stunUdpMuxMonitorMap);
 	}
 	// Listener deletion waits for callbacks, which may themselves use the C API.
 	for (auto &[id, listener] : listeners)
 		listener->stop();
+	for (auto &[id, monitor] : monitors)
+		monitor->stop();
 	std::lock_guard lock(mutex);
-	size_t count = dataChannelMap.size() + trackMap.size() + peerConnectionMap.size() + listeners.size();
+	size_t count = dataChannelMap.size() + trackMap.size() + peerConnectionMap.size() +
+	               listeners.size() + monitors.size();
 	dataChannelMap.clear();
 	trackMap.clear();
 	peerConnectionMap.clear();
@@ -520,8 +548,64 @@ int rtcDeleteIceUdpMuxListener(int listener) {
 	});
 }
 
-int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
-                           const char *remoteSdp, const rtcLocalDescriptionInit *localInit, int *pc) {
+int rtcCreateStunUdpMuxMonitor(const rtcStunUdpMuxMonitorConfiguration *config) {
+	return wrap([&] {
+		if (!config || !config->serverHost)
+			throw std::invalid_argument("STUN monitor configuration and host are required");
+		StunUdpMuxMonitorConfiguration c;
+		if (config->bindAddress) c.bindAddress = config->bindAddress;
+		c.localPort = config->localPort;
+		c.serverHost = config->serverHost;
+		c.serverPort = config->serverPort;
+		return registerStunUdpMuxMonitor(std::make_shared<StunUdpMuxMonitor>(std::move(c)));
+	});
+}
+
+int rtcCreateIceUdpMuxStunMonitor(int listener, const char *serverHost, uint16_t serverPort) {
+	return wrap([&] {
+		if (!serverHost)
+			throw std::invalid_argument("STUN server host is required");
+		return registerStunUdpMuxMonitor(getIceUdpMuxListener(listener)->monitorStun(serverHost, serverPort));
+	});
+}
+
+int rtcDeleteStunUdpMuxMonitor(int monitor) {
+	return wrap([&] {
+		auto owned = getStunUdpMuxMonitor(monitor);
+		owned->stop();
+		std::lock_guard lock(mutex);
+		stunUdpMuxMonitorMap.erase(monitor);
+		return RTC_ERR_SUCCESS;
+	});
+}
+
+int rtcGetStunUdpMuxBinding(int monitor, unsigned int index, rtcStunBinding *binding) {
+	return wrap([&] {
+		if (!binding)
+			throw std::invalid_argument("STUN binding output is required");
+		auto value = getStunUdpMuxMonitor(monitor)->binding(index);
+		if (!value) return RTC_ERR_NOT_AVAIL;
+		rtcStunBinding copy{};
+		if (value->serverAddress.size() >= sizeof(copy.serverAddress) ||
+		    value->mappedAddress.size() >= sizeof(copy.mappedAddress))
+			throw std::runtime_error("STUN binding address exceeds buffer size");
+		std::copy(value->serverAddress.begin(), value->serverAddress.end(), copy.serverAddress);
+		std::copy(value->mappedAddress.begin(), value->mappedAddress.end(), copy.mappedAddress);
+		copy.serverPort = value->serverPort;
+		copy.mappedPort = value->mappedPort;
+		copy.state = static_cast<rtcStunBindingState>(value->state);
+		copy.successfulResponses = value->successfulResponses;
+		copy.failedTransactions = value->failedTransactions;
+		copy.mappingRevision = value->mappingRevision;
+		copy.lastSuccessAgeMs = value->lastSuccessAgeMs.value_or(std::numeric_limits<uint64_t>::max());
+		*binding = copy;
+		return RTC_ERR_SUCCESS;
+	});
+}
+
+static int prepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
+                               const rtcUdpSendLimits *limits, const char *remoteSdp,
+                               const rtcLocalDescriptionInit *localInit, int *pc) {
 	if (pc)
 		*pc = -1;
 	return wrap([&] {
@@ -531,7 +615,9 @@ int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfigura
 		shared_ptr<PeerConnection> peer;
 		std::exception_ptr error;
 		try {
-			owned->prepare(requestId, convertConfiguration(config), Description(remoteSdp, "offer"),
+			auto configuration = convertConfiguration(config);
+			if (limits) configuration.udpSendLimits = convertUdpSendLimits(limits);
+			owned->prepare(requestId, std::move(configuration), Description(remoteSdp, "offer"),
 			               {string(localInit->iceUfrag), string(localInit->icePwd)}, peer);
 		} catch (...) {
 			error = std::current_exception();
@@ -544,6 +630,18 @@ int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfigura
 			std::rethrow_exception(error);
 		return RTC_ERR_SUCCESS;
 	});
+}
+
+int rtcPrepareIceUdpMuxPeer(int listener, uint64_t requestId, const rtcConfiguration *config,
+                           const char *remoteSdp, const rtcLocalDescriptionInit *localInit, int *pc) {
+	return prepareIceUdpMuxPeer(listener, requestId, config, nullptr, remoteSdp, localInit, pc);
+}
+
+int rtcPrepareIceUdpMuxPeerWithUdpLimits(int listener, uint64_t requestId, const rtcConfiguration *config,
+                                       const rtcUdpSendLimits *limits, const char *remoteSdp,
+                                       const rtcLocalDescriptionInit *localInit, int *pc) {
+	if (!limits) { if (pc) *pc = -1; return RTC_ERR_INVALID; }
+	return prepareIceUdpMuxPeer(listener, requestId, config, limits, remoteSdp, localInit, pc);
 }
 
 int rtcAcceptIceUdpMuxPeer(int listener, uint64_t requestId, int pc) {
@@ -582,6 +680,33 @@ int rtcCreatePeerConnection(const rtcConfiguration *config) {
 	return wrap([config] {
 		Configuration c = convertConfiguration(config);
 		return emplacePeerConnection(std::make_shared<PeerConnection>(std::move(c)));
+	});
+}
+
+int rtcCreatePeerConnectionWithUdpLimits(const rtcConfiguration *config, const rtcUdpSendLimits *limits) {
+	return wrap([&] {
+		auto configuration = convertConfiguration(config);
+		configuration.udpSendLimits = convertUdpSendLimits(limits);
+		return emplacePeerConnection(std::make_shared<PeerConnection>(std::move(configuration)));
+	});
+}
+
+int rtcGetUdpMonotonicTimeMs(uint64_t *time) {
+	return wrap([&] {
+		if (!time) throw std::invalid_argument("Clock output is required");
+		*time = PeerConnection::udpMonotonicTimeMs();
+		return RTC_ERR_SUCCESS;
+	});
+}
+
+int rtcGetUdpSendStats(int pc, rtcUdpSendStats *stats) {
+	return wrap([&] {
+		if (!stats) throw std::invalid_argument("Statistics output is required");
+		auto value = getPeerConnection(pc)->udpSendStats();
+		if (!value) return RTC_ERR_NOT_AVAIL;
+		*stats = {value->reservedDatagrams, value->sentDatagrams, value->sentBytes,
+		          value->rejectedDatagrams, static_cast<rtcUdpSendRejection>(value->lastRejection)};
+		return RTC_ERR_SUCCESS;
 	});
 }
 

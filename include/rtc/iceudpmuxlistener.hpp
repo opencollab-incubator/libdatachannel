@@ -12,6 +12,7 @@
 
 #include "common.hpp"
 #include "peerconnection.hpp"
+#include "stunudpmuxmonitor.hpp"
 
 namespace rtc {
 
@@ -97,6 +98,9 @@ public:
 	void attach(uint64_t requestId, shared_ptr<PeerConnection> peer);
 	void reject(uint64_t requestId);
 	IceUdpMuxListenerStats stats() const;
+	// The monitor inherits this listener's exact bind address/port and remains
+	// caller-owned when the listener stops. Stop it separately when no longer needed.
+	shared_ptr<StunUdpMuxMonitor> monitorStun(string serverHost, uint16_t serverPort = 3478);
 
 private:
 	using CheshireCat<impl::IceUdpMuxListener>::impl;

@@ -75,6 +75,7 @@ set(LIBDATACHANNEL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/dependencydescriptor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/description.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/iceudpmuxlistener.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/stunudpmuxmonitor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mediahandler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/global.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/message.cpp
@@ -117,6 +118,7 @@ set(LIBDATACHANNEL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/dependencydescriptor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/description.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/iceudpmuxlistener.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/stunudpmuxmonitor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/mediahandler.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/rtcpreceivingsession.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/common.hpp
@@ -165,6 +167,7 @@ set(LIBDATACHANNEL_IMPL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/dtlstransport.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/icetransport.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/iceudpmuxlistener.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/stunudpmuxmonitor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/init.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/peerconnection.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/logcounter.cpp
@@ -198,6 +201,7 @@ set(LIBDATACHANNEL_IMPL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/dtlstransport.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/icetransport.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/iceudpmuxlistener.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/stunudpmuxmonitor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/init.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/internals.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/peerconnection.hpp
@@ -659,10 +663,30 @@ if(TRANSPORT_TEARDOWN_TESTS AND NOT USE_NICE)
 endif()
 
 option(ICE_UDP_MUX_TESTS "Build focused incoming ICE request tests" OFF)
+option(STUN_UDP_MUX_TESTS "Build local STUN monitor API and lifetime tests" OFF)
+option(UDP_LIMIT_API_TESTS "Build bounded UDP send C API tests" OFF)
+if(UDP_LIMIT_API_TESTS AND NOT USE_NICE)
+    enable_testing()
+    add_executable(udp-send-limits-api-test test/udp_send_limits.cpp)
+    set_target_properties(udp-send-limits-api-test PROPERTIES CXX_STANDARD 17)
+    target_link_libraries(udp-send-limits-api-test PRIVATE datachannel-static)
+    add_test(NAME udp-send-limits-api COMMAND udp-send-limits-api-test)
+    set_tests_properties(udp-send-limits-api PROPERTIES TIMEOUT 20)
+endif()
 option(RTC_ENABLE_TEST_DIAGNOSTICS "Compile test-only native construction counters" ${ICE_UDP_MUX_TESTS})
-if(RTC_ENABLE_TEST_DIAGNOSTICS)
+if(RTC_ENABLE_TEST_DIAGNOSTICS OR STUN_UDP_MUX_TESTS)
     target_compile_definitions(datachannel PUBLIC RTC_ENABLE_TEST_DIAGNOSTICS=1)
     target_compile_definitions(datachannel-static PUBLIC RTC_ENABLE_TEST_DIAGNOSTICS=1)
+endif()
+if(STUN_UDP_MUX_TESTS AND NOT USE_NICE AND UNIX)
+    enable_testing()
+    add_executable(stun-udp-mux-monitor-test test/stunudpmux_monitor.cpp)
+    target_link_libraries(stun-udp-mux-monitor-test PRIVATE datachannel-static Threads::Threads)
+    target_compile_options(stun-udp-mux-monitor-test PRIVATE -UNDEBUG)
+    foreach(family IN ITEMS 4 6)
+        add_test(NAME stun-udp-mux-monitor-${family} COMMAND stun-udp-mux-monitor-test ${family})
+        set_tests_properties(stun-udp-mux-monitor-${family} PROPERTIES TIMEOUT 25)
+    endforeach()
 endif()
 if(ICE_UDP_MUX_TESTS AND NOT USE_NICE AND NOT WIN32 AND NOT USE_GNUTLS AND NOT USE_MBEDTLS)
     enable_testing()
