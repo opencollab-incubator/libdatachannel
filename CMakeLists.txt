@@ -75,6 +75,7 @@ set(LIBDATACHANNEL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/dependencydescriptor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/description.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/iceudpmuxlistener.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/stunudpmuxmonitor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mediahandler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/global.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/message.cpp
@@ -117,6 +118,7 @@ set(LIBDATACHANNEL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/dependencydescriptor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/description.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/iceudpmuxlistener.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/stunudpmuxmonitor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/mediahandler.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/rtcpreceivingsession.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/rtc/common.hpp
@@ -165,6 +167,7 @@ set(LIBDATACHANNEL_IMPL_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/dtlstransport.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/icetransport.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/iceudpmuxlistener.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/stunudpmuxmonitor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/init.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/peerconnection.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/logcounter.cpp
@@ -198,6 +201,7 @@ set(LIBDATACHANNEL_IMPL_HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/dtlstransport.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/icetransport.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/iceudpmuxlistener.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/stunudpmuxmonitor.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/init.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/internals.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/impl/peerconnection.hpp
@@ -230,6 +234,7 @@ set(TESTS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test/connectivity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/negotiated.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/reliability.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/stunudpmux_monitor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test/simulcast_sdp_generation.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test/simulcast_sdp_parsing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/turn_connectivity.cpp
@@ -592,6 +597,7 @@ if(NOT NO_TESTS)
 		XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER com.github.paullouisageneau.libdatachannel.tests)
 
 	target_include_directories(datachannel-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+	target_compile_definitions(datachannel-tests PRIVATE USE_NICE=$<BOOL:${USE_NICE}>)
 	target_link_libraries(datachannel-tests datachannel Threads::Threads)
 
 	# Benchmark

@@ -15,6 +15,7 @@
 //
 #include "datachannel.hpp"
 #include "iceudpmuxlistener.hpp"
+#include "stunudpmuxmonitor.hpp"
 #include "peerconnection.hpp"
 #include "track.hpp"
 

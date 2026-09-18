@@ -101,6 +101,15 @@ IceUdpMuxListener::~IceUdpMuxListener() {
 	try { stop(); } catch (const std::exception &e) { PLOG_ERROR << e.what(); }
 }
 
+shared_ptr<rtc::StunUdpMuxMonitor> IceUdpMuxListener::monitorStun(string serverHost,
+                                                               uint16_t serverPort) {
+	std::lock_guard lock(mStopMutex);
+	if (mStopped)
+		throw std::logic_error("ICE UDP mux listener is stopped");
+	return std::make_shared<rtc::StunUdpMuxMonitor>(
+	    StunUdpMuxMonitorConfiguration{bindAddress, port, std::move(serverHost), serverPort});
+}
+
 void IceUdpMuxListener::stop() {
 #if !USE_NICE
 	if (CallbackListener == this)

@@ -47,6 +47,9 @@ See [examples](https://github.com/paullouisageneau/libdatachannel/blob/master/ex
 
 Additionally, you might want to have a look at the [C API documentation](https://github.com/paullouisageneau/libdatachannel/blob/master/DOC.md).
 
+For independent STUN discovery on an existing UDP mux socket, see
+[STUN monitoring](docs/stun-monitoring.md).
+
 ### Signal a PeerConnection
 
 ```cpp
