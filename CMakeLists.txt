@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 project(libdatachannel
-	VERSION 0.24.5
+	VERSION 0.24.6
 	LANGUAGES CXX)
 set(PROJECT_DESCRIPTION "C/C++ WebRTC network library featuring Data Channels, Media Transport, and WebSockets")
 
@@ -232,6 +232,7 @@ set(LIBDATACHANNEL_IMPL_HEADERS
 set(TESTS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/connectivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/dtls.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/negotiated.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/reliability.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/stunudpmux_monitor.cpp

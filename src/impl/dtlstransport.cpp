@@ -85,6 +85,8 @@ DtlsTransport::DtlsTransport(shared_ptr<IceTransport> lower, certificate_ptr cer
 		              "Failed to set SRTP profile");
 
 		gnutls::check(gnutls_credentials_set(mSession, GNUTLS_CRD_CERTIFICATE, creds));
+		if (!mIsClient)
+			gnutls_certificate_server_set_request(mSession, GNUTLS_CERT_REQUIRE);
 
 		gnutls_dtls_set_timeouts(mSession,
 		                         1000,   // 1s retransmission timeout recommended by RFC 6347
@@ -162,8 +164,11 @@ void DtlsTransport::incoming(message_ptr message) {
 	}
 
 	PLOG_VERBOSE << "Incoming size=" << message->size();
-	mIncomingQueue.push(std::move(message));
-	enqueueRecv();
+	if (mIncomingQueue.tryPush(std::move(message))) {
+		enqueueRecv();
+	} else {
+		PLOG_VERBOSE << "DTLS incoming queue is full, dropping";
+	}
 }
 
 bool DtlsTransport::outgoing(message_ptr message) {
@@ -494,8 +499,11 @@ void DtlsTransport::incoming(message_ptr message) {
 	}
 
 	PLOG_VERBOSE << "Incoming size=" << message->size();
-	mIncomingQueue.push(std::move(message));
-	enqueueRecv();
+	if (mIncomingQueue.tryPush(std::move(message))) {
+		enqueueRecv();
+	} else {
+		PLOG_VERBOSE << "DTLS incoming queue is full, dropping";
+	}
 }
 
 bool DtlsTransport::outgoing(message_ptr message) {
@@ -536,7 +544,9 @@ void DtlsTransport::doRecv() {
 				}
 
 				if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
-					ThreadPool::Instance().schedule(mTimerSetAt + milliseconds(mFinMs),
+					auto timeout = mFinMs != 0 ? mTimerSetAt + milliseconds(mFinMs)
+					                           : std::chrono::steady_clock::now() + milliseconds(MBEDTLS_SSL_DTLS_TIMEOUT_DFL_MIN);
+					ThreadPool::Instance().schedule(timeout,
 					                                [weak_this = weak_from_this()]() {
 						                                if (auto locked = weak_this.lock())
 							                                locked->doRecv();
@@ -603,12 +613,18 @@ void DtlsTransport::doRecv() {
 }
 
 int DtlsTransport::CertificateCallback(void *ctx, mbedtls_x509_crt *crt, int /*depth*/,
-                                       uint32_t * /*flags*/) {
+                                       uint32_t *flags) {
 	auto this_ = static_cast<DtlsTransport *>(ctx);
 	string fingerprint = make_fingerprint(crt, this_->mFingerprintAlgorithm);
 	std::transform(fingerprint.begin(), fingerprint.end(), fingerprint.begin(),
 	               [](char c) { return char(std::toupper(c)); });
-	return this_->mVerifierCallback(fingerprint) ? 0 : 1;
+
+	if (!this_->mVerifierCallback(fingerprint)) {
+		if (flags) *flags |= MBEDTLS_X509_BADCERT_NOT_TRUSTED;
+		return MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+	}
+
+	return 0;
 }
 
 void DtlsTransport::ExportKeysCallback(void *ctx, mbedtls_ssl_key_export_type /*type*/,
@@ -849,7 +865,7 @@ void DtlsTransport::start() {
 		err = SSL_get_error(mSsl, ret);
 	}
 
-	openssl::check_error(err, "Handshake failed");
+	openssl::check_error(err, "Handshake failed", mSsl);
 
 	// start() can run on the libjuice poll thread via the ICE state-change
 	// callback, while juice still holds its registry mutex. Calling
@@ -895,7 +911,7 @@ void DtlsTransport::incoming(message_ptr message) {
 	}
 
 	PLOG_VERBOSE << "Incoming size=" << message->size();
-	if(mIncomingQueue.tryPush(std::move(message))) {
+	if (mIncomingQueue.tryPush(std::move(message))) {
 		enqueueRecv();
 	} else {
 		PLOG_VERBOSE << "DTLS incoming queue is full, dropping";
@@ -957,7 +973,7 @@ void DtlsTransport::doRecv() {
 					err = SSL_get_error(mSsl, ret);
 				}
 
-				if (openssl::check_error(err, "Handshake failed")) {
+				if (openssl::check_error(err, "Handshake failed", mSsl)) {
 					// RFC 8261: DTLS MUST support sending messages larger than the current path MTU
 					// See https://www.rfc-editor.org/rfc/rfc8261.html#section-5
 					{
