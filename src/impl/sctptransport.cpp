@@ -963,6 +963,31 @@ optional<milliseconds> SctpTransport::rtt() {
 	return milliseconds(status.sstat_primary.spinfo_srtt);
 }
 
+optional<SctpStats> SctpTransport::stats() {
+	if (state() != State::Connected)
+		return nullopt;
+
+	struct sctp_status status = {};
+	socklen_t len = sizeof(status);
+	if (usrsctp_getsockopt(mSock, IPPROTO_SCTP, SCTP_STATUS, &status, &len))
+		return nullopt;
+
+	struct sctp_timeouts timeouts = {};
+	len = sizeof(timeouts);
+	if (usrsctp_getsockopt(mSock, IPPROTO_SCTP, SCTP_TIMEOUTS, &timeouts, &len))
+		return nullopt;
+
+	SctpStats stats;
+	stats.rtt = milliseconds(status.sstat_primary.spinfo_srtt);
+	stats.rto = milliseconds(status.sstat_primary.spinfo_rto);
+	stats.congestionWindow = status.sstat_primary.spinfo_cwnd;
+	stats.peerReceiveWindow = status.sstat_rwnd;
+	stats.unackedChunks = status.sstat_unackdata;
+	stats.pendingChunks = status.sstat_penddata;
+	stats.dataTimeouts = timeouts.stimo_data;
+	return stats;
+}
+
 void SctpTransport::UpcallCallback(struct socket *, void *arg, int /* flags */) {
 	auto *transport = static_cast<SctpTransport *>(arg);
 

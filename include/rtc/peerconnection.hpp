@@ -42,6 +42,17 @@ struct RTC_CPP_EXPORT LocalDescriptionInit {
     optional<string> icePwd;
 };
 
+// What the SCTP association reports about itself
+struct SctpStats {
+	std::chrono::milliseconds rtt{0}; // Smoothed round trip time, 0 until sampled or under 1 ms
+	std::chrono::milliseconds rto{0}; // Retransmission timeout
+	uint32_t congestionWindow = 0;    // Bytes
+	uint32_t peerReceiveWindow = 0;   // Bytes
+	uint32_t unackedChunks = 0;       // DATA chunks sent and not acknowledged yet
+	uint32_t pendingChunks = 0;       // Received chunks waiting for reassembly or ordering
+	uint32_t dataTimeouts = 0;        // Retransmission timer expiries since the association started
+};
+
 class RTC_CPP_EXPORT PeerConnection final : CheshireCat<impl::PeerConnection> {
 	friend struct impl::IceUdpMuxListener;
 public:
@@ -138,6 +149,7 @@ public:
 	size_t bytesSent();
 	size_t bytesReceived();
 	optional<std::chrono::milliseconds> rtt();
+	optional<SctpStats> sctpStats();
 };
 
 RTC_CPP_EXPORT std::ostream &operator<<(std::ostream &out, PeerConnection::State state);

@@ -358,6 +358,19 @@ RTC_C_EXPORT int rtcGetRemoteMaxMessageSize(int pc);
 // Round trip time of the SCTP association in milliseconds, RTC_ERR_NOT_AVAIL until it reports one
 RTC_C_EXPORT int rtcGetRtt(int pc);
 
+typedef struct {
+	int rtt;                        // Smoothed round trip time in ms, 0 until sampled or under 1 ms
+	int rto;                        // Retransmission timeout in milliseconds
+	unsigned int congestionWindow;  // Bytes
+	unsigned int peerReceiveWindow; // Bytes
+	unsigned int unackedChunks;     // DATA chunks sent and not acknowledged yet
+	unsigned int pendingChunks;     // Received chunks waiting for reassembly or ordering
+	unsigned int dataTimeouts;      // Retransmission timer expiries since the association started
+} rtcSctpStats;
+
+// State of the SCTP association, RTC_ERR_NOT_AVAIL until it is connected
+RTC_C_EXPORT int rtcGetSctpStats(int pc, rtcSctpStats *stats);
+
 // DataChannel, Track, and WebSocket common API
 
 RTC_C_EXPORT int rtcSetOpenCallback(int id, rtcOpenCallbackFunc cb);

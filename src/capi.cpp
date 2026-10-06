@@ -983,6 +983,23 @@ int rtcGetRtt(int pc) {
 	});
 }
 
+int rtcGetSctpStats(int pc, rtcSctpStats *stats) {
+	return wrap([&] {
+		if (!stats)
+			throw std::invalid_argument("Statistics output is required");
+
+		auto peerConnection = getPeerConnection(pc);
+		auto value = peerConnection->sctpStats();
+		if (!value)
+			return RTC_ERR_NOT_AVAIL;
+
+		*stats = {int(value->rtt.count()),  int(value->rto.count()), value->congestionWindow,
+		          value->peerReceiveWindow, value->unackedChunks,    value->pendingChunks,
+		          value->dataTimeouts};
+		return RTC_ERR_SUCCESS;
+	});
+}
+
 int rtcGetMaxDataChannelStream(int pc) {
 	return wrap([&] {
 		auto peerConnection = getPeerConnection(pc);

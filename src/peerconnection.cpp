@@ -413,6 +413,11 @@ optional<std::chrono::milliseconds> PeerConnection::rtt() {
 	return sctpTransport ? sctpTransport->rtt() : nullopt;
 }
 
+optional<SctpStats> PeerConnection::sctpStats() {
+	auto sctpTransport = impl()->getSctpTransport();
+	return sctpTransport ? sctpTransport->stats() : nullopt;
+}
+
 CertificateFingerprint PeerConnection::remoteFingerprint() {
 	return impl()->remoteFingerprint();
 }

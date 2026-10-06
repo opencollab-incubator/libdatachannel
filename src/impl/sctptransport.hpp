@@ -14,6 +14,7 @@
 #include "global.hpp"
 #include "processor.hpp"
 #include "queue.hpp"
+#include "rtc/peerconnection.hpp"
 #include "transport.hpp"
 
 #include <condition_variable>
@@ -59,6 +60,7 @@ public:
 	size_t bytesSent();
 	size_t bytesReceived();
 	optional<std::chrono::milliseconds> rtt();
+	optional<SctpStats> stats();
 
 private:
 	// Order seems wrong but these are the actual values
