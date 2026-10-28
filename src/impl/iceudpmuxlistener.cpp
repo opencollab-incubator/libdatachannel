@@ -349,6 +349,9 @@ void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddres
 	if (result < 0)
 		throw std::runtime_error("Failed to set PROXY protocol relays");
 #else
+	(void)port;
+	(void)bindAddress;
+	(void)proxies;
 	throw std::runtime_error("ICE UDP mux requires libjuice");
 #endif
 }
@@ -369,6 +372,10 @@ optional<string> GetIceUdpMuxProxyRelay(uint16_t port, const optional<string> &b
 		throw std::runtime_error("Failed to look up a PROXY protocol relay");
 	return string(relay);
 #else
+	(void)port;
+	(void)bindAddress;
+	(void)clientAddress;
+	(void)clientPort;
 	throw std::runtime_error("ICE UDP mux requires libjuice");
 #endif
 }
