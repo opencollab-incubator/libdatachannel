@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <list>
+#include <mutex>
 #include <unordered_map>
 
 namespace rtc::impl {
@@ -75,6 +76,8 @@ void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddres
                                const std::vector<string> &proxies);
 optional<string> GetIceUdpMuxProxyRelay(uint16_t port, const optional<string> &bindAddress,
                                         const string &clientAddress, uint16_t clientPort);
+// Clears every relay list set above, once no peer connection is left
+void ClearIceUdpMuxProxyProtocols();
 
 }
 

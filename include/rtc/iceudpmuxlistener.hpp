@@ -123,7 +123,8 @@ private:
 // Reads a PROXY protocol v2 header from these relays, as numeric addresses or CIDR ranges, on a
 // shared ICE UDP endpoint, for listeners and peers alike. Replies go back through the relay, and
 // nothing else leaves straight but STUN server lookups. Other incoming datagrams are dropped
-// except STUN responses to the endpoint's own requests. An empty list clears it (libjuice only).
+// except STUN responses to the endpoint's own requests. The endpoint stays bound until an empty
+// list clears it, or rtc::Cleanup once no peer connection is left (libjuice only).
 RTC_CPP_EXPORT void SetIceUdpMuxProxyProtocol(uint16_t port, optional<string> bindAddress,
                                              const std::vector<string> &proxies);
 

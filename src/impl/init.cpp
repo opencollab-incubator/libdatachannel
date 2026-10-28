@@ -10,6 +10,7 @@
 #include "certificate.hpp"
 #include "dtlstransport.hpp"
 #include "icetransport.hpp"
+#include "iceudpmuxlistener.hpp"
 #include "internals.hpp"
 #include "pollservice.hpp"
 #include "sctptransport.hpp"
@@ -95,6 +96,9 @@ bool Init::preload() {
 std::shared_future<void> Init::cleanup() {
 	std::lock_guard lock(mMutex);
 	mGlobal.reset();
+	// Uninitialized, no peer connection is left to wait for, and doCleanup will not run
+	if (!mInitialized)
+		ClearIceUdpMuxProxyProtocols();
 	return mCleanupFuture;
 }
 
@@ -185,6 +189,7 @@ void Init::doCleanup() {
 #if RTC_ENABLE_MEDIA
 	DtlsSrtpTransport::Cleanup();
 #endif
+	ClearIceUdpMuxProxyProtocols();
 	IceTransport::Cleanup();
 
 #ifdef _WIN32

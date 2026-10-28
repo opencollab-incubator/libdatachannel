@@ -298,7 +298,8 @@ RTC_C_EXPORT int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmiss
 // Read a PROXY protocol v2 header from these relays (numeric addresses or CIDR ranges) on a shared
 // ICE UDP port, for listeners and peers alike. Replies go back through the relay, and nothing else
 // leaves straight but STUN server lookups. Other incoming datagrams are dropped except STUN
-// responses to the port's own requests. A count of 0 clears it.
+// responses to the port's own requests. The port stays bound until a count of 0 clears it, or
+// rtcCleanup once no peer connection is left.
 RTC_C_EXPORT int rtcSetIceUdpMuxProxyProtocol(const char *bindAddress, uint16_t port,
 	const char *const *proxies, int count);
 // The relay a client comes through on such a port, as "address:port", by the numeric client

@@ -95,6 +95,14 @@ struct Socket {
         return false;
     }
 };
+bool bindable(uint16_t at) {
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockaddr_in address{}; address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); address.sin_port = htons(at);
+    bool bound = fd >= 0 && bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == 0;
+    if (fd >= 0) close(fd);
+    return bound;
+}
 struct Requests {
     std::mutex mutex;
     std::condition_variable changed;
@@ -374,7 +382,12 @@ int main() {
         directPeer();
         admission();
         std::cout << "incoming ICE PASS reentrantReject=true reentrantStop=true existingPeerAttachment=true directPeer=true admission=true\n";
+        const char *relays[] = {"10.0.0.0/8"};
+        require(rtcSetIceUdpMuxProxyProtocol("127.0.0.1", port + 1, relays, 1) == 0, "set relays");
+        require(!bindable(port + 1), "relays keep their port bound");
         rtcCleanup();
+        require(bindable(port + 1), "cleanup clears relays and frees their port");
+        std::cout << "incoming ICE PASS relaysClearedOnCleanup=true\n";
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
         return 1;

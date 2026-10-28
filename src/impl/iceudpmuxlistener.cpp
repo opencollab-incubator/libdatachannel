@@ -11,11 +11,16 @@
 #include "internals.hpp"
 #include "peerconnection.hpp"
 
+#include <set>
+
 namespace rtc::impl {
 
 #if !USE_NICE
 namespace {
 thread_local const IceUdpMuxListener *CallbackListener = nullptr;
+// Endpoints with a PROXY protocol relay list, by bind address ("" for any), for cleanup
+std::mutex ProxyProtocolMutex;
+std::set<std::pair<string, uint16_t>> ProxyProtocolEndpoints;
 IceUdpMuxRequest copyRequest(const juice_mux_binding_request_t &info, uint64_t id = 0) {
 	return {info.local_ufrag, info.remote_ufrag, info.address, info.port, id};
 }
@@ -342,12 +347,18 @@ void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddres
 	entries.reserve(proxies.size());
 	for (const auto &proxy : proxies)
 		entries.push_back(proxy.c_str());
+	std::lock_guard lock(ProxyProtocolMutex);
 	int result = juice_mux_set_proxy_protocol(bindAddress ? bindAddress->c_str() : nullptr, port,
 	                                          entries.data(), entries.size());
 	if (result == JUICE_ERR_INVALID)
 		throw std::invalid_argument("Invalid PROXY protocol relay");
 	if (result < 0)
 		throw std::runtime_error("Failed to set PROXY protocol relays");
+	auto endpoint = std::make_pair(bindAddress.value_or(""), port);
+	if (proxies.empty())
+		ProxyProtocolEndpoints.erase(endpoint);
+	else
+		ProxyProtocolEndpoints.insert(std::move(endpoint));
 #else
 	(void)port;
 	(void)bindAddress;
@@ -377,6 +388,15 @@ optional<string> GetIceUdpMuxProxyRelay(uint16_t port, const optional<string> &b
 	(void)clientAddress;
 	(void)clientPort;
 	throw std::runtime_error("ICE UDP mux requires libjuice");
+#endif
+}
+
+void ClearIceUdpMuxProxyProtocols() {
+#if !USE_NICE
+	std::lock_guard lock(ProxyProtocolMutex);
+	for (const auto &[address, port] : ProxyProtocolEndpoints)
+		juice_mux_set_proxy_protocol(address.empty() ? nullptr : address.c_str(), port, nullptr, 0);
+	ProxyProtocolEndpoints.clear();
 #endif
 }
 
