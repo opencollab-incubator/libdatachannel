@@ -300,6 +300,10 @@ RTC_C_EXPORT int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmiss
 // datagrams are dropped except STUN responses to the port's own requests. A count of 0 clears it.
 RTC_C_EXPORT int rtcSetIceUdpMuxProxyProtocol(const char *bindAddress, uint16_t port,
 	const char *const *proxies, int count);
+// The relay a client comes through on such a port, as "address:port", by the numeric client
+// address and port its header declared. RTC_ERR_NOT_AVAIL when no relay speaks for it.
+RTC_C_EXPORT int rtcGetIceUdpMuxProxyRelay(const char *bindAddress, uint16_t port,
+	const char *clientAddress, uint16_t clientPort, char *buffer, int size);
 
 // Persistent STUN monitoring on a shared UDP socket, with no ICE peer (libjuice only).
 typedef struct {

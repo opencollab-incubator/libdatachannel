@@ -72,6 +72,8 @@ private:
 
 void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddress,
                                const std::vector<string> &proxies);
+optional<string> GetIceUdpMuxProxyRelay(uint16_t port, const optional<string> &bindAddress,
+                                        const string &clientAddress, uint16_t clientPort);
 
 }
 

@@ -127,6 +127,12 @@ private:
 RTC_CPP_EXPORT void SetIceUdpMuxProxyProtocol(uint16_t port, optional<string> bindAddress,
                                              const std::vector<string> &proxies);
 
+// The relay a client comes through on such an endpoint, as "address:port", by the numeric client
+// address and port its header declared. nullopt when no relay speaks for it (libjuice only).
+RTC_CPP_EXPORT optional<string> GetIceUdpMuxProxyRelay(uint16_t port, optional<string> bindAddress,
+                                                      const string &clientAddress,
+                                                      uint16_t clientPort);
+
 } // namespace rtc
 
 #endif

@@ -695,6 +695,19 @@ int rtcSetIceUdpMuxProxyProtocol(const char *bindAddress, uint16_t port, const c
 	});
 }
 
+int rtcGetIceUdpMuxProxyRelay(const char *bindAddress, uint16_t port, const char *clientAddress,
+                              uint16_t clientPort, char *buffer, int size) {
+	return wrap([&] {
+		if (!clientAddress)
+			throw std::invalid_argument("Unexpected null pointer for client address");
+		auto address = bindAddress ? optional<string>(bindAddress) : nullopt;
+		if (auto relay = GetIceUdpMuxProxyRelay(port, std::move(address), clientAddress, clientPort))
+			return copyAndReturn(std::move(*relay), buffer, size);
+		else
+			return RTC_ERR_NOT_AVAIL;
+	});
+}
+
 int rtcCreatePeerConnection(const rtcConfiguration *config) {
 	return wrap([config] {
 		Configuration c = convertConfiguration(config);

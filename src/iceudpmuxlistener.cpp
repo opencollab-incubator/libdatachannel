@@ -107,4 +107,9 @@ void SetIceUdpMuxProxyProtocol(uint16_t port, optional<string> bindAddress,
 	impl::SetIceUdpMuxProxyProtocol(port, bindAddress, proxies);
 }
 
+optional<string> GetIceUdpMuxProxyRelay(uint16_t port, optional<string> bindAddress,
+                                        const string &clientAddress, uint16_t clientPort) {
+	return impl::GetIceUdpMuxProxyRelay(port, bindAddress, clientAddress, clientPort);
+}
+
 } // namespace rtc
