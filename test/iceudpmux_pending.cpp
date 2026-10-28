@@ -234,14 +234,17 @@ void directPeer() {
 // Requests that no key or peer authenticates never reach the callback.
 void admission() {
     const std::string context = "context", secret = "admission secret", keyed = "keyedLocalUfrag";
-    std::array<unsigned char, 32> digest{};
-    auto input = context + keyed;
-    require(HMAC(EVP_sha256(), secret.data(), int(secret.size()),
-                 reinterpret_cast<const unsigned char *>(input.data()), input.size(), digest.data(),
-                 nullptr), "derive admission password");
-    std::array<unsigned char, 33> encoded{};
-    EVP_EncodeBlock(encoded.data(), digest.data(), 24);
-    const std::string derived(reinterpret_cast<const char *>(encoded.data()));
+    auto derive = [&](const std::string &ufrag) {
+        std::array<unsigned char, 32> digest{};
+        auto input = context + ufrag;
+        require(HMAC(EVP_sha256(), secret.data(), int(secret.size()),
+                     reinterpret_cast<const unsigned char *>(input.data()), input.size(),
+                     digest.data(), nullptr), "derive admission password");
+        std::array<unsigned char, 33> encoded{};
+        EVP_EncodeBlock(encoded.data(), digest.data(), 24);
+        return std::string(reinterpret_cast<const char *>(encoded.data()));
+    };
+    const std::string derived = derive(keyed);
     Requests requests;
     rtcIceUdpMuxListenerConfiguration cfg{"127.0.0.1", port, 8, 5000};
     int listener = rtcCreateIceUdpMuxListener(&cfg, Requests::incoming, &requests);
@@ -251,7 +254,8 @@ void admission() {
     require(rtcSetIceUdpMuxAdmission(listener, &settings) == 0, "set admission");
     Socket forged, unknown, valid, open;
     forged.send(request(keyed, 21));
-    unknown.send(request("unknownLocalUfrag", 22, true, derived));
+    // Signed with the key's password for its own ufrag, so only the prefix turns it away
+    unknown.send(request("unknownLocalUfrag", 22, true, derive("unknownLocalUfrag")));
     valid.send(request(keyed, 23, true, derived));
     auto id = requests.wait(0);
     rtcIceUdpMuxListenerStats stats{};
