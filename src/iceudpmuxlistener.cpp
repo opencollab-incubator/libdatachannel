@@ -10,6 +10,7 @@
 #include "iceudpmuxlistener.hpp"
 
 #include "impl/iceudpmuxlistener.hpp"
+#include "impl/utils.hpp"
 
 namespace rtc {
 
@@ -93,6 +94,12 @@ void IceUdpMuxListener::attach(uint64_t requestId, shared_ptr<PeerConnection> pe
 }
 
 void IceUdpMuxListener::setAdmission(optional<IceUdpMuxAdmission> admission) {
+	// libjuice keeps a copy of its own, so this one goes however the call ends
+	scope_guard wipeSecrets([&] {
+		if (admission)
+			for (auto &key : admission->keys)
+				impl::utils::wipe(key.secret);
+	});
 	impl()->setAdmission(admission);
 }
 

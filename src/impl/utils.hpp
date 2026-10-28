@@ -37,6 +37,9 @@ std::seed_seq random_seed();
 // Return ntp timestamp
 uint64_t ntp_time();
 
+// Zero data that held a secret, in a way the compiler cannot drop before the memory is freed
+void wipe(binary &data);
+
 template <typename Generator, typename Result = typename Generator::result_type>
 struct random_engine_wrapper {
 	Generator &engine;

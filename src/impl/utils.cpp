@@ -147,6 +147,12 @@ uint64_t ntp_time() {
 	return uint64_t(std::floor((secs + 2208988800.) * double(uint64_t(1) << 32)));
 }
 
+void wipe(binary &data) {
+	volatile byte *bytes = data.data();
+	for (size_t i = 0; i < data.size(); ++i)
+		bytes[i] = byte(0);
+}
+
 namespace {
 
 void thread_set_name_self(const char *name) {

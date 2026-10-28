@@ -11,6 +11,7 @@
 
 #include "impl/internals.hpp"
 #include "impl/peerconnection.hpp"
+#include "impl/utils.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -662,6 +663,12 @@ int rtcGetIceUdpMuxListenerStats(int listener, rtcIceUdpMuxListenerStats *stats)
 int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmission *admission) {
 	return wrap([&] {
 		optional<IceUdpMuxAdmission> value;
+		// An invalid key throws after earlier secrets were copied; once handed over, the listener wipes them
+		scope_guard wipeSecrets([&] {
+			if (value)
+				for (auto &key : value->keys)
+					impl::utils::wipe(key.secret);
+		});
 		if (admission) {
 			if (admission->contextSize < 0 || (admission->contextSize && !admission->context) ||
 			    admission->keysCount < 0 || (admission->keysCount && !admission->keys))
