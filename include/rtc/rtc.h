@@ -296,8 +296,9 @@ RTC_C_EXPORT int rtcGetIceUdpMuxListenerStats(int listener, rtcIceUdpMuxListener
 // any callback. Secrets are copied. NULL holds every request again.
 RTC_C_EXPORT int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmission *admission);
 // Read a PROXY protocol v2 header from these relays (numeric addresses or CIDR ranges) on a shared
-// ICE UDP port, for listeners and peers alike. Replies go back through the relay, and other
-// datagrams are dropped except STUN responses to the port's own requests. A count of 0 clears it.
+// ICE UDP port, for listeners and peers alike. Replies go back through the relay, and nothing else
+// leaves straight but STUN server lookups. Other incoming datagrams are dropped except STUN
+// responses to the port's own requests. A count of 0 clears it.
 RTC_C_EXPORT int rtcSetIceUdpMuxProxyProtocol(const char *bindAddress, uint16_t port,
 	const char *const *proxies, int count);
 // The relay a client comes through on such a port, as "address:port", by the numeric client
