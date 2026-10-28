@@ -29,22 +29,26 @@ using std::chrono::milliseconds;
 
 namespace {
 
-std::unordered_map<int, shared_ptr<PeerConnection>> peerConnectionMap;
-std::unordered_map<int, shared_ptr<IceUdpMuxListener>> iceUdpMuxListenerMap;
-std::unordered_map<int, shared_ptr<StunUdpMuxMonitor>> stunUdpMuxMonitorMap;
-std::unordered_map<int, shared_ptr<DataChannel>> dataChannelMap;
-std::unordered_map<int, shared_ptr<Track>> trackMap;
+// Never destroyed, like Init and the thread pool. Destroying them at exit tore down the peers still
+// registered on whichever thread exited, while callback threads went on using them: a callback blocked in
+// its host, as in a halting JVM, kept a lock the teardown waited for, and the teardown read maps already
+// destroyed. rtcCleanup() still releases what they hold.
+auto &peerConnectionMap = *new std::unordered_map<int, shared_ptr<PeerConnection>>;
+auto &iceUdpMuxListenerMap = *new std::unordered_map<int, shared_ptr<IceUdpMuxListener>>;
+auto &stunUdpMuxMonitorMap = *new std::unordered_map<int, shared_ptr<StunUdpMuxMonitor>>;
+auto &dataChannelMap = *new std::unordered_map<int, shared_ptr<DataChannel>>;
+auto &trackMap = *new std::unordered_map<int, shared_ptr<Track>>;
 #if RTC_ENABLE_MEDIA
-std::unordered_map<int, shared_ptr<RtcpSrReporter>> rtcpSrReporterMap;
-std::unordered_map<int, shared_ptr<RtpPacketizationConfig>> rtpConfigMap;
-std::unordered_map<int, shared_ptr<RtcpReceivingSession>> rtcpReceivingSessionMap;
+auto &rtcpSrReporterMap = *new std::unordered_map<int, shared_ptr<RtcpSrReporter>>;
+auto &rtpConfigMap = *new std::unordered_map<int, shared_ptr<RtpPacketizationConfig>>;
+auto &rtcpReceivingSessionMap = *new std::unordered_map<int, shared_ptr<RtcpReceivingSession>>;
 #endif
 #if RTC_ENABLE_WEBSOCKET
-std::unordered_map<int, shared_ptr<WebSocket>> webSocketMap;
-std::unordered_map<int, shared_ptr<WebSocketServer>> webSocketServerMap;
+auto &webSocketMap = *new std::unordered_map<int, shared_ptr<WebSocket>>;
+auto &webSocketServerMap = *new std::unordered_map<int, shared_ptr<WebSocketServer>>;
 #endif
-std::unordered_map<int, void *> userPointerMap;
-std::mutex mutex;
+auto &userPointerMap = *new std::unordered_map<int, void *>;
+auto &mutex = *new std::mutex;
 int lastId = 0;
 
 Configuration convertConfiguration(const rtcConfiguration *config) {
