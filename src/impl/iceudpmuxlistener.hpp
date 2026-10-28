@@ -59,6 +59,7 @@ private:
 	};
 	void removeExpiredRequests(); // Takes its own lock; never closes peers under it.
 	void eraseRequest(std::unordered_map<uint64_t, Request>::iterator it);
+	std::unique_lock<std::mutex> lockStop(); // Left unlocked inside this listener's callbacks
 
 	std::atomic<bool> mStopped{false};
 	std::mutex mStopMutex;

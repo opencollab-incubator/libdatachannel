@@ -117,13 +117,15 @@ struct BlockingCallback {
     std::mutex mutex;
     std::condition_variable changed;
     bool entered = false, released = false;
-    int inlineDeleteResult = 0;
+    int inlineDeleteResult = 0, admissionResult = 0;
     static void RTC_API incoming(int listener, const rtcIceUdpMuxRequest *, void *ptr) {
         auto &self = *static_cast<BlockingCallback *>(ptr);
         self.inlineDeleteResult = rtcDeleteIceUdpMuxListener(listener);
         std::unique_lock lock(self.mutex);
         self.entered = true; self.changed.notify_all();
         self.changed.wait(lock, [&] { return self.released; });
+        // Deletion waits for this callback, so admission must not wait for deletion
+        self.admissionResult = rtcSetIceUdpMuxAdmission(listener, nullptr);
     }
 };
 struct ReentrantClose {
@@ -354,11 +356,17 @@ int main() {
         require(firstDelete.wait_for(30ms) == std::future_status::timeout, "deletion waits for callback");
         auto secondDelete = std::async(std::launch::async, [listener] { return rtcDeleteIceUdpMuxListener(listener); });
         require(secondDelete.wait_for(30ms) == std::future_status::timeout, "concurrent deletion also waits");
+        // Admission fails only once a deletion has marked the listener stopped, which stats reports
+        auto stopping = std::chrono::steady_clock::now() + 3s;
+        while (rtcGetIceUdpMuxListenerStats(listener, &stats) == 0 && std::chrono::steady_clock::now() < stopping)
+            std::this_thread::sleep_for(1ms);
+        require(rtcGetIceUdpMuxListenerStats(listener, &stats) < 0, "deletion marks the listener stopped");
         {
             std::lock_guard lock(blocking.mutex);
             blocking.released = true; blocking.changed.notify_all();
         }
         require(firstDelete.get() == 0 && secondDelete.get() == 0, "concurrent deletes complete safely");
+        require(blocking.admissionResult < 0, "admission from a callback fails while deletion waits");
         std::cout << "incoming ICE PASS retained-first-request=true duplicate-callbacks=0 invalid-stun-creations=0 failure-ownership=true\n";
         reentrantClose(false);
         reentrantClose(true);

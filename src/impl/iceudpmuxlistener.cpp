@@ -101,9 +101,20 @@ IceUdpMuxListener::~IceUdpMuxListener() {
 	try { stop(); } catch (const std::exception &e) { PLOG_ERROR << e.what(); }
 }
 
+std::unique_lock<std::mutex> IceUdpMuxListener::lockStop() {
+	std::unique_lock lock(mStopMutex, std::defer_lock);
+#if !USE_NICE
+	// Stop waits for this listener's callbacks, so one of them cannot outlive it and must not wait
+	if (CallbackListener == this)
+		return lock;
+#endif
+	lock.lock();
+	return lock;
+}
+
 shared_ptr<rtc::StunUdpMuxMonitor> IceUdpMuxListener::monitorStun(string serverHost,
                                                                uint16_t serverPort) {
-	std::lock_guard lock(mStopMutex);
+	auto lock = lockStop();
 	if (mStopped)
 		throw std::logic_error("ICE UDP mux listener is stopped");
 	return std::make_shared<rtc::StunUdpMuxMonitor>(
@@ -295,7 +306,7 @@ void IceUdpMuxListener::setAdmission(const optional<IceUdpMuxAdmission> &admissi
 		native = {admission->context.data(), admission->context.size(), keys.data(),
 		          static_cast<int>(keys.size())};
 	}
-	std::lock_guard lock(mStopMutex); // Stop clears the native admission.
+	auto lock = lockStop(); // Stop clears the native admission.
 	if (!mPendingMode || mStopped)
 		throw std::logic_error("ICE UDP mux admission requires a running pending listener");
 	int result = juice_mux_set_admission(bindAddress ? bindAddress->c_str() : nullptr, port,
