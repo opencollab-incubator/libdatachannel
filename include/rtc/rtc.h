@@ -108,7 +108,7 @@ typedef enum {
 	RTC_CLOSE_REASON_LOCAL = 1,            // Closed by this side
 	RTC_CLOSE_REASON_REMOTE_SHUTDOWN = 2,  // The remote shut SCTP or DTLS down
 	RTC_CLOSE_REASON_REMOTE_ABORT = 3,     // The remote aborted the SCTP association
-	RTC_CLOSE_REASON_SCTP_TIMEOUT = 4,     // The remote stopped acknowledging SCTP data
+	RTC_CLOSE_REASON_SCTP_TIMEOUT = 4,     // The remote stopped answering SCTP, handshake included
 	RTC_CLOSE_REASON_ICE_FAILED = 5,       // ICE lost connectivity to the remote
 	RTC_CLOSE_REASON_TRANSPORT_FAILED = 6  // A transport failed otherwise, or could not start
 } rtcCloseReason;
