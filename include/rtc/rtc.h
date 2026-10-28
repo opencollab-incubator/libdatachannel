@@ -110,7 +110,7 @@ typedef enum {
 	RTC_CLOSE_REASON_REMOTE_ABORT = 3,     // The remote aborted the SCTP association
 	RTC_CLOSE_REASON_SCTP_TIMEOUT = 4,     // The remote stopped acknowledging SCTP data
 	RTC_CLOSE_REASON_ICE_FAILED = 5,       // ICE lost connectivity to the remote
-	RTC_CLOSE_REASON_TRANSPORT_FAILED = 6  // DTLS or SCTP failed otherwise
+	RTC_CLOSE_REASON_TRANSPORT_FAILED = 6  // A transport failed otherwise, or could not start
 } rtcCloseReason;
 
 typedef enum { // Don't change, it must match plog severity

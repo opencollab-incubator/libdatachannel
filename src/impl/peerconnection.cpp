@@ -255,6 +255,7 @@ shared_ptr<IceTransport> PeerConnection::initIceTransport() {
 
 	} catch (const std::exception &e) {
 		PLOG_ERROR << e.what();
+		setCloseReason(CloseReason::TransportFailed);
 		changeState(State::Failed);
 		throw std::runtime_error("ICE transport initialization failed");
 	}
@@ -342,6 +343,7 @@ shared_ptr<DtlsTransport> PeerConnection::initDtlsTransport() {
 
 	} catch (const std::exception &e) {
 		PLOG_ERROR << e.what();
+		setCloseReason(CloseReason::TransportFailed);
 		changeState(State::Failed);
 		throw std::runtime_error("DTLS transport initialization failed");
 	}
@@ -405,6 +407,7 @@ shared_ptr<SctpTransport> PeerConnection::initSctpTransport() {
 
 	} catch (const std::exception &e) {
 		PLOG_ERROR << e.what();
+		setCloseReason(CloseReason::TransportFailed);
 		changeState(State::Failed);
 		throw std::runtime_error("SCTP transport initialization failed");
 	}
