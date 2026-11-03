@@ -64,7 +64,7 @@ private:
 
 	const bool mIsActive;
 	string mHostname, mService;
-	amount_callback mBufferedAmountCallback;
+	synchronized_callback<size_t> mBufferedAmountCallback;
 	optional<std::chrono::milliseconds> mConnectTimeout;
 	optional<std::chrono::milliseconds> mReadTimeout;
 
