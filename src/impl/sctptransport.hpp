@@ -115,7 +115,7 @@ private:
 	Queue<message_ptr> mSendQueue;
 	bool mSendShutdown = false;
 	std::map<uint16_t, size_t> mBufferedAmount;
-	amount_callback mBufferedAmountCallback;
+	synchronized_callback<uint16_t, size_t> mBufferedAmountCallback;
 
 	std::mutex mWriteMutex;
 	std::condition_variable mWrittenCondition;
