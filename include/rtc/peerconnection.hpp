@@ -51,6 +51,9 @@ struct SctpStats {
 	uint32_t unackedChunks = 0;       // DATA chunks sent and not acknowledged yet
 	uint32_t pendingChunks = 0;       // Received chunks waiting for reassembly or ordering
 	uint32_t dataTimeouts = 0;        // Retransmission timer expiries since the association started
+	uint32_t sendQueueBytes = 0;      // Accepted for sending and not acknowledged yet, sent or not
+	uint32_t sendBufferSize = 0;      // Bytes the send queue may hold before sending would block
+	uint32_t receiveQueueBytes = 0;   // Received bytes waiting for reassembly or ordering
 };
 
 class RTC_CPP_EXPORT PeerConnection final : CheshireCat<impl::PeerConnection> {
