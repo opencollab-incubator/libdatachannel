@@ -408,6 +408,10 @@ typedef struct {
 	unsigned int sendQueueBytes;    // Accepted for sending and not acknowledged yet, sent or not
 	unsigned int sendBufferSize;    // Bytes the send queue may hold before sending would block
 	unsigned int receiveQueueBytes; // Received bytes waiting for reassembly or ordering
+	unsigned int fastRetransmits;   // Packets sent by fast retransmit, after gap reports
+	unsigned int retransmittedChunks; // DATA chunks sent again, by fast retransmit or timeout
+	unsigned int gapSacks;          // SACKs received that reported gaps
+	unsigned int duplicateTsnsReceived; // DATA chunks received that had arrived already
 } rtcSctpStats;
 
 // State of the SCTP association, RTC_ERR_NOT_AVAIL until it is connected

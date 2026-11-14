@@ -54,6 +54,10 @@ struct SctpStats {
 	uint32_t sendQueueBytes = 0;      // Accepted for sending and not acknowledged yet, sent or not
 	uint32_t sendBufferSize = 0;      // Bytes the send queue may hold before sending would block
 	uint32_t receiveQueueBytes = 0;   // Received bytes waiting for reassembly or ordering
+	uint32_t fastRetransmits = 0;     // Packets sent by fast retransmit, after gap reports
+	uint32_t retransmittedChunks = 0; // DATA chunks sent again, by fast retransmit or timeout
+	uint32_t gapSacks = 0;            // SACKs received that reported gaps
+	uint32_t duplicateTsnsReceived = 0; // DATA chunks received that had arrived already
 };
 
 class RTC_CPP_EXPORT PeerConnection final : CheshireCat<impl::PeerConnection> {
