@@ -51,6 +51,9 @@ struct SctpSettings {
 	optional<std::chrono::milliseconds> initialRetransmitTimeout;
 	optional<unsigned int> maxRetransmitAttempts;
 	optional<std::chrono::milliseconds> heartbeatInterval;
+	// Whether max burst shrinks cwnd while the sender is application-limited, as usrsctp does by
+	// default; with false, max burst only limits each burst
+	optional<bool> cwndBasedMaxBurst;
 };
 
 RTC_CPP_EXPORT void SetSctpSettings(SctpSettings s);
