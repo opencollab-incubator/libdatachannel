@@ -27,6 +27,7 @@ TestResult test_dtls_startup_after_remote_description();
 TestResult test_pem();
 TestResult test_negotiated();
 TestResult test_reliability();
+TestResult test_sctp_stats();
 TestResult test_stun_udp_mux_monitor();
 TestResult test_simulcast_sdp_generation();
 TestResult test_simulcast_sdp_parsing();
@@ -94,6 +95,7 @@ static const vector<Test> tests = {
     // Test("WebRTC TURN connectivity", test_turn_connectivity),
     Test("WebRTC negotiated DataChannel", test_negotiated),
     Test("WebRTC reliability mode", test_reliability),
+    Test("SCTP send queue stats", test_sctp_stats),
 #if !USE_NICE
     Test("STUN UDP mux monitor", test_stun_udp_mux_monitor),
 #endif

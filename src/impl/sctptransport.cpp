@@ -48,6 +48,16 @@
 #endif
 */
 
+// Missing from usrsctp.h
+#ifndef SCTP_GET_SNDBUF_USE
+#define SCTP_GET_SNDBUF_USE 0x00001101
+struct sctp_sockstat {
+	sctp_assoc_t ss_assoc_id;
+	uint32_t ss_total_sndbuf;
+	uint32_t ss_total_recv_buf;
+};
+#endif
+
 using namespace std::chrono_literals;
 using namespace std::chrono;
 
@@ -980,6 +990,16 @@ optional<SctpStats> SctpTransport::stats() {
 	if (usrsctp_getsockopt(mSock, IPPROTO_SCTP, SCTP_TIMEOUTS, &timeouts, &len))
 		return nullopt;
 
+	struct sctp_sockstat sockstat = {};
+	len = sizeof(sockstat);
+	if (usrsctp_getsockopt(mSock, IPPROTO_SCTP, SCTP_GET_SNDBUF_USE, &sockstat, &len))
+		return nullopt;
+
+	int sndBuf = 0;
+	len = sizeof(sndBuf);
+	if (usrsctp_getsockopt(mSock, SOL_SOCKET, SO_SNDBUF, &sndBuf, &len))
+		return nullopt;
+
 	SctpStats stats;
 	stats.rtt = milliseconds(status.sstat_primary.spinfo_srtt);
 	stats.rto = milliseconds(status.sstat_primary.spinfo_rto);
@@ -988,6 +1008,9 @@ optional<SctpStats> SctpTransport::stats() {
 	stats.unackedChunks = status.sstat_unackdata;
 	stats.pendingChunks = status.sstat_penddata;
 	stats.dataTimeouts = timeouts.stimo_data;
+	stats.sendQueueBytes = sockstat.ss_total_sndbuf;
+	stats.sendBufferSize = uint32_t(std::max(sndBuf, 0));
+	stats.receiveQueueBytes = sockstat.ss_total_recv_buf;
 	return stats;
 }
 
