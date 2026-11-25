@@ -114,6 +114,10 @@ void SctpTransport::SetSettings(const SctpSettings &s) {
 	// Set max burst to 10 MTUs by default (max burst is initially 0, meaning disabled)
 	usrsctp_sysctl_set_sctp_max_burst_default(to_uint32(s.maxBurst.value_or(10)));
 
+	// usrsctp shrinks cwnd to what is in flight plus max burst whenever the sender is
+	// application-limited, which pins it at max burst MTUs through light traffic
+	usrsctp_sysctl_set_sctp_use_cwnd_based_maxburst(s.cwndBasedMaxBurst.value_or(true) ? 1 : 0);
+
 	// Use standard SCTP congestion control (RFC 4960) by default
 	// See https://github.com/paullouisageneau/libdatachannel/issues/354
 	usrsctp_sysctl_set_sctp_default_cc_module(to_uint32(s.congestionControlModule.value_or(0)));

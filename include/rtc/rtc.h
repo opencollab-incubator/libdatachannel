@@ -733,6 +733,9 @@ typedef struct {
 	int initialRetransmitTimeoutMs; // in milliseconds, <= 0 means optimized default
 	int maxRetransmitAttempts;      // number of retransmissions, <= 0 means optimized default
 	int heartbeatIntervalMs;        // in milliseconds, <= 0 means optimized default
+	// Whether max burst shrinks cwnd to what is in flight plus maxBurst MTUs whenever the sender has
+	// less in flight than cwnd allows, rather than only limiting each burst: > 0 yes, < 0 no, 0 default (yes)
+	int cwndBasedMaxBurst;
 } rtcSctpSettings;
 
 // Note: SCTP settings apply to newly-created PeerConnections only
