@@ -405,6 +405,9 @@ typedef struct {
 	unsigned int unackedChunks;     // DATA chunks sent and not acknowledged yet
 	unsigned int pendingChunks;     // Received chunks waiting for reassembly or ordering
 	unsigned int dataTimeouts;      // Retransmission timer expiries since the association started
+	unsigned int sendQueueBytes;    // Accepted for sending and not acknowledged yet, sent or not
+	unsigned int sendBufferSize;    // Bytes the send queue may hold before sending would block
+	unsigned int receiveQueueBytes; // Received bytes waiting for reassembly or ordering
 } rtcSctpStats;
 
 // State of the SCTP association, RTC_ERR_NOT_AVAIL until it is connected

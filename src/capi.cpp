@@ -1060,7 +1060,8 @@ int rtcGetSctpStats(int pc, rtcSctpStats *stats) {
 
 		*stats = {int(value->rtt.count()),  int(value->rto.count()), value->congestionWindow,
 		          value->peerReceiveWindow, value->unackedChunks,    value->pendingChunks,
-		          value->dataTimeouts};
+		          value->dataTimeouts,      value->sendQueueBytes,   value->sendBufferSize,
+		          value->receiveQueueBytes};
 		return RTC_ERR_SUCCESS;
 	});
 }
