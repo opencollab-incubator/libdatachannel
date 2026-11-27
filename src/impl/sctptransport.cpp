@@ -58,6 +58,17 @@ struct sctp_sockstat {
 };
 #endif
 
+#ifndef SCTP_ASSOC_RECOVERY
+#define SCTP_ASSOC_RECOVERY 0x00001106
+struct sctp_assoc_recovery {
+	sctp_assoc_t sar_assoc_id;
+	uint32_t sar_fast_retransmits;
+	uint32_t sar_retransmitted_chunks;
+	uint32_t sar_gap_sacks;
+	uint32_t sar_duplicate_tsns_received;
+};
+#endif
+
 using namespace std::chrono_literals;
 using namespace std::chrono;
 
@@ -1004,6 +1015,13 @@ optional<SctpStats> SctpTransport::stats() {
 	if (usrsctp_getsockopt(mSock, SOL_SOCKET, SO_SNDBUF, &sndBuf, &len))
 		return nullopt;
 
+	// A system usrsctp without SCTP_ASSOC_RECOVERY rejects it; its counters then stay 0 rather than
+	// costing the rest of the stats
+	struct sctp_assoc_recovery recovery = {};
+	len = sizeof(recovery);
+	if (usrsctp_getsockopt(mSock, IPPROTO_SCTP, SCTP_ASSOC_RECOVERY, &recovery, &len))
+		recovery = {};
+
 	SctpStats stats;
 	stats.rtt = milliseconds(status.sstat_primary.spinfo_srtt);
 	stats.rto = milliseconds(status.sstat_primary.spinfo_rto);
@@ -1015,6 +1033,10 @@ optional<SctpStats> SctpTransport::stats() {
 	stats.sendQueueBytes = sockstat.ss_total_sndbuf;
 	stats.sendBufferSize = uint32_t(std::max(sndBuf, 0));
 	stats.receiveQueueBytes = sockstat.ss_total_recv_buf;
+	stats.fastRetransmits = recovery.sar_fast_retransmits;
+	stats.retransmittedChunks = recovery.sar_retransmitted_chunks;
+	stats.gapSacks = recovery.sar_gap_sacks;
+	stats.duplicateTsnsReceived = recovery.sar_duplicate_tsns_received;
 	return stats;
 }
 
